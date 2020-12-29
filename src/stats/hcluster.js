@@ -1,12 +1,13 @@
-science.stats.hcluster = function() {
-  var distance = science.stats.distance.euclidean,
-      linkage = "single"; // single, complete or average
+cience.stats.hcluster = function() {
+  var distance = reorder.distance.euclidean,
+      linkage = "single", // single, complete or average
+      distMatrix = null;
 
   function hcluster(vectors) {
     var n = vectors.length,
         dMin = [],
         cSize = [],
-        distMatrix = [],
+//        distMatrix = [],
         clusters = [],
         c1,
         c2,
@@ -15,26 +16,43 @@ science.stats.hcluster = function() {
         p,
         root,
         i,
-        j;
+        j,
+        id = 0;
 
     // Initialise distance matrix and vector of closest clusters.
-    i = -1; while (++i < n) {
-      dMin[i] = 0;
-      distMatrix[i] = [];
-      j = -1; while (++j < n) {
-        distMatrix[i][j] = i === j ? Infinity : distance(vectors[i] , vectors[j]);
-        if (distMatrix[i][dMin[i]] > distMatrix[i][j]) dMin[i] = j;
+      if (distMatrix === null) {
+          distMatrix = [];
+          i = -1; while (++i < n) {
+              dMin[i] = 0;
+              distMatrix[i] = [];
+              j = -1; while (++j < n) {
+                  distMatrix[i][j] = i === j ? Infinity : distance(vectors[i] , vectors[j]);
+                  if (distMatrix[i][dMin[i]] > distMatrix[i][j]) dMin[i] = j;
+              }
+          }
       }
-    }
-
+      else {
+          if (distMatrix.length < n || distMatrix[0].length < n)
+              throw {error: "Provided distance matrix length "+distMatrix.length+" instead of "+n};
+          i = -1; while (++i < n) {
+              dMin[i] = 0;
+              j = -1; while (++j < n) {
+                  if (i === j)
+                      distMatrix[i][j] = Infinity;
+                  if (distMatrix[i][dMin[i]] > distMatrix[i][j]) dMin[i] = j;
+              }
+          }
+      }
     // create leaves of the tree
     i = -1; while (++i < n) {
+        if (i != id) console.log("i = %d, id = %d", i, id);
       clusters[i] = [];
       clusters[i][0] = {
         left: null,
         right: null,
         dist: 0,
         centroid: vectors[i],
+        id: id++, //[jdf] keep track of original data index
         size: 1,
         depth: 0
       };
@@ -60,6 +78,7 @@ science.stats.hcluster = function() {
         dist: distMatrix[c1][c2],
         centroid: calculateCentroid(c1Cluster.size, c1Cluster.centroid,
           c2Cluster.size, c2Cluster.centroid),
+        id: id++,
         size: c1Cluster.size + c2Cluster.size,
         depth: 1 + Math.max(c1Cluster.depth, c2Cluster.depth)
       };
@@ -84,7 +103,6 @@ science.stats.hcluster = function() {
       }
       distMatrix[c1][c1] = Infinity;
 
-      // infinity ­out old row c2 and column c2
       for (i = 0; i < n; i++)
         distMatrix[i][c2] = distMatrix[c2][i] = Infinity;
 
@@ -101,9 +119,21 @@ science.stats.hcluster = function() {
     return root;
   }
 
+  hcluster.linkage = function(x) {
+    if (!arguments.length) return linkage;
+    linkage = x;
+    return hcluster;
+  };
+
   hcluster.distance = function(x) {
     if (!arguments.length) return distance;
     distance = x;
+    return hcluster;
+  };
+
+  hcluster.distanceMatrix = function(x) {
+    if (!arguments.length) return distMatrix;
+    distMatrix = x.map(function(y) { return y.slice(0); });
     return hcluster;
   };
 
